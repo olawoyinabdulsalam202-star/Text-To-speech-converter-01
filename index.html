@@ -1,0 +1,218 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HTML Text → Speech — converter</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--muted:#94a3b8;--accent:#7c3aed;--glass:rgba(255,255,255,0.03)}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial; background:linear-gradient(180deg,#071028 0%, #061427 100%);color:#e6eef8}
+    .container{max-width:920px;margin:36px auto;padding:22px;background:linear-gradient(180deg,rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;box-shadow:0 10px 30px rgba(2,6,23,0.6)}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 18px;color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
+    .card{background:var(--card);padding:14px;border-radius:10px}
+    textarea{width:100%;min-height:180px;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:var(--glass);color:inherit;resize:vertical;font-size:15px}
+    label{display:block;font-size:13px;margin-bottom:6px}
+    select,input[type=range]{width:100%}
+    .row{display:flex;gap:8px}
+    button{background:linear-gradient(180deg,var(--accent),#5b21b6);border:0;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:8px;color:var(--muted)}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .meta{font-size:13px;color:var(--muted);margin-top:8px}
+    .small{font-size:12px;color:var(--muted)}
+    .footer{margin-top:12px;color:var(--muted);font-size:12px}
+    @media (max-width:880px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="container" role="main">
+    <h1>Text → Speech (Browser) — Converter</h1>
+    <p class="lead">Type or paste text, choose a voice and options, then press <strong>Speak</strong>. Works in modern Chromium & WebKit browsers.</p><div class="grid">
+  <section class="card">
+    <label for="text">Text to speak</label>
+    <textarea id="text">Hello! This is a  browser built-in text-to-speech (SpeechSynthesis) API. Change the voice, rate, and pitch — then press Speak.</textarea>
+
+    <div class="controls">
+      <button id="speak">Speak ▶</button>
+      <button id="pause" class="secondary">Pause ❚❚</button>
+      <button id="resume" class="secondary">Resume ▶</button>
+      <button id="stop" class="secondary">Stop ■</button>
+      <button id="clear" class="secondary">Clear</button>
+      <button id="copy" class="secondary">Copy</button>
+    </div>
+
+    <div class="meta" id="status">Status: idle</div>
+    <div class="footer">Tip: Voices come from the OS/browser. Some browsers provide more natural voices than others.</div>
+  </section>
+
+  <aside class="card">
+    <label for="voices">Voice</label>
+    <select id="voices"></select>
+
+    <label for="rate">Rate <span class="small" id="rateValue">1.0</span></label>
+    <input id="rate" type="range" min="0.1" max="2" step="0.1" value="1">
+
+    <label for="pitch">Pitch <span class="small" id="pitchValue">1.0</span></label>
+    <input id="pitch" type="range" min="0" max="2" step="0.1" value="1">
+
+    <label for="volume">Volume <span class="small" id="volumeValue">1.0</span></label>
+    <input id="volume" type="range" min="0" max="1" step="0.01" value="1">
+
+    <div style="margin-top:12px">
+      <label for="sample">Sample presets</label>
+      <select id="sample">
+        <option value="Hello, I'm happy to help you with your text-to-speech needs. Please enter your text!".">Short greeting</option>
+        <option value="Welcome to our text-to-speech converter. Please type or paste your text here, and our voice will bring it to life for you. Whether it's an article, a story, or just a fun phrase, we're here to help. Simply enter your text, select a voice, and click play to hear it spoken aloud.">Narration</option>
+        <option value="Believe in yourself, take the leap, and watch your dreams unfold. You've got this! Type your inspiring message, and let our voice motivate and uplift you and others.">Motivational</option>
+        <option value="">(empty)</option>
+      </select>
+    </div>
+
+    <div style="margin-top:12px" class="small">Estimated duration: <span id="estimate">0.0</span> seconds</div>
+
+    <div style="margin-top:12px">
+      <label class="small">Accessibility</label>
+      <div class="small">Keyboard shortcuts: <strong>Ctrl+Enter</strong> to Speak, <strong>Esc</strong> to Stop.</div>
+    </div>
+  </aside>
+</div>
+
+<details style="margin-top:14px;background:transparent;padding:10px;border-radius:8px">
+  <summary style="cursor:pointer">Technical notes</summary>
+  <div class="small" style="margin-top:10px">This uses <code>window.speechSynthesis</code> and <code>SpeechSynthesisUtterance</code>. Voice availability and audio quality vary by browser and platform. Recording synthesized speech to an audio file isn't supported directly by the Web Speech API; that requires server-side synthesis or experimental browser features.</div>
+</details>
+
+  </main>  <script>
+    // Elements
+    const textEl = document.getElementById('text');
+    const voicesSelect = document.getElementById('voices');
+    const speakBtn = document.getElementById('speak');
+    const pauseBtn = document.getElementById('pause');
+    const resumeBtn = document.getElementById('resume');
+    const stopBtn = document.getElementById('stop');
+    const clearBtn = document.getElementById('clear');
+    const copyBtn = document.getElementById('copy');
+    const rateEl = document.getElementById('rate');
+    const pitchEl = document.getElementById('pitch');
+    const volumeEl = document.getElementById('volume');
+    const rateValue = document.getElementById('rateValue');
+    const pitchValue = document.getElementById('pitchValue');
+    const volumeValue = document.getElementById('volumeValue');
+    const sampleSelect = document.getElementById('sample');
+    const statusEl = document.getElementById('status');
+    const estimateEl = document.getElementById('estimate');
+
+    let voices = [];
+    let utterance = null;
+
+    // Load saved settings
+    function loadSettings(){
+      try{
+        const s = JSON.parse(localStorage.getItem('tts.settings')||'{}');
+        if(s.text) textEl.value = s.text;
+        if(s.rate) rateEl.value = s.rate;
+        if(s.pitch) pitchEl.value = s.pitch;
+        if(s.volume) volumeEl.value = s.volume;
+        if(s.voiceURI) localStorage.setItem('tts.selectedVoice', s.voiceURI);
+      }catch(e){/ignore/}
+      updateDisplays();
+      updateEstimate();
+    }
+
+    function saveSettings(){
+      const s = { text: textEl.value, rate: rateEl.value, pitch: pitchEl.value, volume: volumeEl.value, voiceURI: voicesSelect.value };
+      localStorage.setItem('tts.settings', JSON.stringify(s));
+    }
+
+    function updateDisplays(){
+      rateValue.textContent = parseFloat(rateEl.value).toFixed(1);
+      pitchValue.textContent = parseFloat(pitchEl.value).toFixed(1);
+      volumeValue.textContent = parseFloat(volumeEl.value).toFixed(2);
+      volumeValue.textContent = parseFloat(volumeEl.value).toFixed(2);
+    }
+
+    function updateEstimate(){
+      const words = (textEl.value.trim().split(/\s+/).filter(Boolean)).length || 0;
+      // approximate words per minute based on rate (default 150 wpm)
+      const wpm = 150 * parseFloat(rateEl.value);
+      const seconds = wpm>0 ? Math.round((words / wpm) * 60 * 10)/10 : 0;
+      estimateEl.textContent = seconds;
+    }
+
+    // Populate voices
+    function populateVoices(){
+      voices = speechSynthesis.getVoices().sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+      voicesSelect.innerHTML = '';
+      const saved = localStorage.getItem('tts.selectedVoice');
+      voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.voiceURI || v.name;
+        opt.textContent = v.name + (v.lang ? ` — ${v.lang}` : '') + (v.default ? ' — default' : '');
+        voicesSelect.appendChild(opt);
+      });
+      if(saved){
+        const exists = [...voicesSelect.options].some(o=>o.value===saved);
+        if(exists) voicesSelect.value = saved;
+      }
+    }
+
+    // Speak
+    function speak(){
+      const text = textEl.value.trim();
+      if(!text) { statusEl.textContent = 'Status: nothing to speak'; return; }
+      if(window.speechSynthesis.speaking){ window.speechSynthesis.cancel(); }
+
+      utterance = new SpeechSynthesisUtterance(text);
+      const sel = voices.find(v=> (v.voiceURI||v.name) === voicesSelect.value);
+      if(sel) utterance.voice = sel;
+      utterance.rate = parseFloat(rateEl.value);
+      utterance.pitch = parseFloat(pitchEl.value);
+      utterance.volume = parseFloat(volumeEl.value);
+
+      utterance.onstart = ()=>{ statusEl.textContent = 'Status: speaking'; saveSettings(); };
+      utterance.onend = ()=>{ statusEl.textContent = 'Status: finished'; utterance=null };
+      utterance.onerror = (e)=>{ statusEl.textContent = 'Status: error — '+(e.error||e.message||'unknown'); utterance=null };
+
+      window.speechSynthesis.speak(utterance);
+      updateEstimate();
+    }
+
+    // Controls
+    speakBtn.addEventListener('click', speak);
+    pauseBtn.addEventListener('click', ()=>{ if(window.speechSynthesis.speaking && !window.speechSynthesis.paused){ window.speechSynthesis.pause(); statusEl.textContent='Status: paused' } });
+    resumeBtn.addEventListener('click', ()=>{ if(window.speechSynthesis.paused){ window.speechSynthesis.resume(); statusEl.textContent='Status: speaking' } });
+    stopBtn.addEventListener('click', ()=>{ if(window.speechSynthesis.speaking || window.speechSynthesis.paused){ window.speechSynthesis.cancel(); statusEl.textContent='Status: stopped' } });
+    clearBtn.addEventListener('click', ()=>{ textEl.value=''; updateEstimate(); statusEl.textContent='Status: cleared'; saveSettings(); });
+    copyBtn.addEventListener('click', ()=>{ navigator.clipboard?.writeText(textEl.value).then(()=>statusEl.textContent='Status: copied to clipboard').catch(()=>statusEl.textContent='Status: copy failed') });
+
+    // UI updates
+    [rateEl,pitchEl,volumeEl].forEach(el=>el.addEventListener('input', ()=>{ updateDisplays(); updateEstimate(); saveSettings(); }));
+    textEl.addEventListener('input', ()=>{ updateEstimate(); saveSettings(); });
+    sampleSelect.addEventListener('change', ()=>{ textEl.value = sampleSelect.value; updateEstimate(); saveSettings(); });
+    voicesSelect.addEventListener('change', ()=>{ localStorage.setItem('tts.selectedVoice', voicesSelect.value); saveSettings(); });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if(e.ctrlKey && e.key === 'Enter'){ e.preventDefault(); speak(); }
+      if(e.key === 'Escape'){ window.speechSynthesis.cancel(); statusEl.textContent='Status: stopped'; }
+    });
+
+    // Voice change event for some browsers
+    speechSynthesis.onvoiceschanged = populateVoices;
+
+    // Initial setup
+    loadSettings();
+    populateVoices();
+
+    // Safety: detect support
+    if(!('speechSynthesis' in window)){
+      statusEl.textContent = 'Status: not supported in this browser';
+      speakBtn.disabled = true;
+      pauseBtn.disabled = true;
+      resumeBtn.disabled = true;
+      stopBtn.disabled = true;
+    }
+  </script></body>
+</html>
